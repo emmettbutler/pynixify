@@ -38,6 +38,7 @@ expression_template = Template(
     buildPythonPackage rec {
         pname = ${package.pypi_name | nix};
         version = ${version | nix};
+        format = ${metadata._fmt | nix};
 
         % if package.local_source:
             src = lib.cleanSource ../../..;
@@ -114,7 +115,7 @@ overlayed_nixpkgs_template = Template(
 
         packageOverrides = self: super: {
             % for (package_name, path) in overlays.items():
-                ${package_name} =
+                ${"_" + package_name} =
                     self.callPackage
                         ${'' if path.is_absolute() else './'}${str(path).replace('/default.nix', '')} {};
 
@@ -127,7 +128,7 @@ overlayed_nixpkgs_template = Template(
 
 shell_nix_template = Template(
     """${DISCLAIMER}
-    { python ? "python3" }:
+    { python ? "${interpreter}" }:
     let
         pkgs = import ./nixpkgs.nix {};
         pythonPkg = builtins.getAttr python pkgs;
@@ -180,7 +181,7 @@ def build_overlay_expr(overlays: Mapping[str, Path]):
         """
     self: super: {
             % for (package_name, path) in overlays.items():
-                ${package_name} =
+                ${"_" + package_name} =
                     self.callPackage
                         ${'' if path.is_absolute() else './'}${str(path).replace('/default.nix', '')} {};
 
@@ -214,8 +215,10 @@ def build_overlayed_nixpkgs(
     return overlayed_nixpkgs_template.render(DISCLAIMER=DISCLAIMER, **locals())
 
 
-def build_shell_nix_expression(packages: List[Package]) -> str:
-    return shell_nix_template.render(DISCLAIMER=DISCLAIMER, packages=packages)
+def build_shell_nix_expression(packages: List[Package], interpreter: str) -> str:
+    return shell_nix_template.render(
+        DISCLAIMER=DISCLAIMER, packages=packages, interpreter=interpreter
+    )
 
 
 async def nixfmt(expr: str) -> str:
