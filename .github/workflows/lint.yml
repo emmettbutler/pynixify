@@ -1,0 +1,24 @@
+name: lint
+on:
+  pull_request:
+    types: ['opened', 'edited', 'reopened', 'synchronize']
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: actions/setup-python@v4
+        name: Install Python
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: pip install black isort
+
+      - name: Lint Python Code
+        run: |
+          black --check pynixify
+          isort --check pynixify
