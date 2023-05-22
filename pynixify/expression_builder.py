@@ -124,7 +124,7 @@ overlayed_nixpkgs_template = Template("""${DISCLAIMER}
 """)
 
 shell_nix_template = Template("""${DISCLAIMER}
-    { python ? "${interpreter | nix}" }:
+    { python ? ${interpreter | nix} }:
     let
         pkgs = import ./nixpkgs.nix {};
         pythonPkg = builtins.getAttr python pkgs;
@@ -208,7 +208,7 @@ def build_overlayed_nixpkgs(
 
 
 def build_shell_nix_expression(packages: List[Package], interpreter: str) -> str:
-    return shell_nix_template.render(DISCLAIMER=DISCLAIMER, packages=packages, interpreter=interpreter)
+    return shell_nix_template.render(DISCLAIMER=DISCLAIMER, packages=packages, interpreter=interpreter, nix=escape_string)
 
 
 async def nixfmt(expr: str) -> str:
