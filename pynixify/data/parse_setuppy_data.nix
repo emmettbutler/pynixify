@@ -1,6 +1,6 @@
-{ file, stdenv ? (import <nixpkgs> { }).stdenv, lib ? (import <nixpkgs> { }).lib
-, unzip ? (import <nixpkgs> { }).unzip, python ? (import <nixpkgs> { }).python3
-, git ? (import <nixpkgs> { }).git, fetchFromGitLab ? (import <nixpkgs> { }).fetchFromGitLab
+{ file, python, stdenv ? (import <nixpkgs> { }).stdenv, lib ? (import <nixpkgs> { }).lib
+, unzip ? (import <nixpkgs> { }).unzip, git ? (import <nixpkgs> { }).git
+, fetchFromGitLab ? (import <nixpkgs> { }).fetchFromGitLab
 }:
 
 let
