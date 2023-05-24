@@ -80,7 +80,7 @@ class PyPIPackage(Package):
 
     @property
     def attr(self):
-        return self.pypi_name
+        return "_" + self.pypi_name
 
     def __str__(self):
         return f'PyPIPackage(attr={self.attr}, version={self.version})'

@@ -113,7 +113,7 @@ overlayed_nixpkgs_template = Template("""${DISCLAIMER}
 
         packageOverrides = self: super: {
             % for (package_name, path) in overlays.items():
-                ${"_" + package_name} =
+                ${package_name} =
                     self.callPackage
                         ${'' if path.is_absolute() else './'}${str(path).replace('/default.nix', '')} {};
 
@@ -171,7 +171,7 @@ def build_overlay_expr(overlays: Mapping[str, Path]):
     return Template("""
     self: super: {
             % for (package_name, path) in overlays.items():
-                ${"_" + package_name} =
+                ${package_name} =
                     self.callPackage
                         ${'' if path.is_absolute() else './'}${str(path).replace('/default.nix', '')} {};
 
@@ -201,7 +201,8 @@ def build_overlayed_nixpkgs(
         'python37',
         'python38',
         'python39',
-        'python310'
+        'python310',
+        'python311'
     ]
 
     return overlayed_nixpkgs_template.render(DISCLAIMER=DISCLAIMER, **locals())
