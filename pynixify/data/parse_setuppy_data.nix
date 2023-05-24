@@ -95,6 +95,8 @@ let
       ++ lib.optionals (python.pkgs.pythonOlder "3.11")
       [ python.pkgs.tomli ];
   };
+  patchedpip = python.pkgs.pip.overrideAttrs
+    (ps: { patches = [ ./pip_patch.diff ]; });
 
   pythonWithPackages = python.withPackages (ps: [
     patchedSetuptools
@@ -102,7 +104,8 @@ let
     hatchling
     hatchvcs
     flitscm
-    python.pkgs.pip
+    patchedpip
+    python.pkgs.wheel
   ]);
 
   cleanSource = src:
@@ -127,6 +130,7 @@ in stdenv.mkDerivation {
     if PYNIXIFY=1 python setup.py install; then
         exit 0
     fi
+    echo "about to do the thing"
     if pip --no-cache-dir wheel --config-settings PYNIXIFY_OUT=$out --no-build-isolation $PWD; then
         exit 0
     fi

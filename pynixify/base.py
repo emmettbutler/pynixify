@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
+import os
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional, Dict
@@ -69,6 +70,9 @@ class Package:
                 description=None,
                 license=None,
             )
+        metadata = {"description": None, "license": None, "url": None}
+        if not os.path.exists(nix_store_path / 'meta.json'):
+            return PackageMetadata(**metadata)
         with (nix_store_path / 'meta.json').open() as fp:
             metadata = json.load(fp)
             try:
@@ -80,7 +84,7 @@ class Package:
                     # When using --local, version starts hardcoded to 0.1dev. This
                     # will update it to its real value
                     self.version = Version(version)
-            return PackageMetadata(**metadata)
+        return PackageMetadata(**metadata)
 
 # mypy hack
 def parse_version(version: str) -> Version:

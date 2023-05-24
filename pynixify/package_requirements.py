@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import os
 from pathlib import Path
 from typing import List
 from dataclasses import dataclass
@@ -38,10 +39,12 @@ class PackageRequirements:
         }
         kwargs = {}
         for (attr, filename) in attr_mapping.items():
-            with (result_path / filename).open() as fp:
-                # Convert from Requirement.parse to Requirement
-                reqs = [Requirement(str(r)) for r in parse_requirements(fp)]
-                kwargs[attr] = reqs
+            reqs = []
+            if os.path.exists(result_path / filename):
+                with (result_path / filename).open() as fp:
+                    # Convert from Requirement.parse to Requirement
+                    reqs = [Requirement(str(r)) for r in parse_requirements(fp)]
+            kwargs[attr] = reqs
         return cls(**kwargs)
 
 

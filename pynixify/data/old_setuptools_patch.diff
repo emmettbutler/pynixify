@@ -1,17 +1,25 @@
 diff --git a/setuptools/__init__.py b/setuptools/__init__.py
-index 83882511..259effd5 100644
+index 6c24cc2b..f40e9254 100644
 --- a/setuptools/__init__.py
 +++ b/setuptools/__init__.py
-@@ -155,14 +155,64 @@ def _install_setup_requires(attrs):
-
+@@ -3,6 +3,7 @@
+ import functools
+ import os
+ import re
++import sys
+ import warnings
+ 
+ import _distutils_hack.override  # noqa: F401
+@@ -76,15 +77,70 @@ def _install_setup_requires(attrs):
+ 
      # Honor setup.cfg's options.
      dist.parse_config_files(ignore_option_errors=True)
 -    if dist.setup_requires:
 -        dist.fetch_build_eggs(dist.setup_requires)
--
+ 
 -
 -def setup(**attrs):
-+    if 'PYNIXIFY' in os.environ:
++    if 'PYNIXIFY_DO_SETUP' not in os.environ and 'PYNIXIFY' in os.environ:
 +        from pathlib import Path
 +        try:
 +            out = Path(os.environ['out'])
@@ -56,7 +64,7 @@ index 83882511..259effd5 100644
 +        meta_attrs = {'description', 'url', 'license', 'version'}
 +        for meta_attr in meta_attrs:
 +            meta[meta_attr] = attrs.get(meta_attr)
-+        meta['_fmt'] = 'setuptools'
++        meta["_fmt"] = "setuptools" if 'PYNIXIFY' in os.environ else "pyproject"
 +        with (out / 'meta.json').open('w') as fp:
 +            json.dump(meta, fp)
 +    else:
@@ -66,10 +74,157 @@ index 83882511..259effd5 100644
 +
 +def setup( **attrs):
      # Make sure we have any requirements needed to interpret 'attrs'.
+     logging.configure()
      _install_setup_requires(attrs)
 -    return distutils.core.setup(**attrs)
-+    if 'PYNIXIFY' not in os.environ:
-+        return distutils.core.setup(**attrs)
-
-
++    print("checking envvars")
++    if "PYNIXIFY_DO_SETUP" in os.environ or "PYNIXIFY" not in os.environ:
++        print("trying to run distutils.core.setup")
++        res = distutils.core.setup(**attrs)
++        print("ran distutils.core.setup")
++        return res
+ 
+ 
  setup.__doc__ = distutils.core.setup.__doc__
+diff --git a/setuptools/build_meta.py b/setuptools/build_meta.py
+index 8ff9a5ce..caf24ad3 100644
+--- a/setuptools/build_meta.py
++++ b/setuptools/build_meta.py
+@@ -62,6 +62,29 @@ SETUPTOOLS_ENABLE_FEATURES = os.getenv("SETUPTOOLS_ENABLE_FEATURES", "").lower()
+ LEGACY_EDITABLE = "legacy-editable" in SETUPTOOLS_ENABLE_FEATURES.replace("_", "-")
+ 
+ 
++def _write_pynixify_files(config_settings, deps):
++    if config_settings is not None and "PYNIXIFY_OUT" in config_settings:
++        from pathlib import Path
++        import json
++        pynix_out = Path(config_settings['PYNIXIFY_OUT'])
++        for target in ("tests", "setup", "install"):
++            fp = (pynix_out / ("%s_requires.txt" % target)).open("w")
++            fp.write('\n'.join([str(req) for req in deps]))
++            fp.write('\nsetuptools\nsetuptools_scm[tomli]\nwheel')
++            fp.close()
++        meta = {}
++        if os.path.isfile(pynix_out / 'meta.json'):
++            with (pynix_out / 'meta.json').open('r') as fp:
++                meta.update(json.load(fp))
++        meta_attrs = {'description', 'url', 'license', 'version'}
++        for meta_attr in meta_attrs:
++            if meta_attr not in meta:
++                meta[meta_attr] = None
++        meta["_fmt"] = "setuptools" if "PYNIXIFY" in os.environ else "pyproject"
++        with (pynix_out / 'meta.json').open('w') as fp:
++            json.dump(meta, fp)
++
++
+ class SetupRequirementsError(BaseException):
+     def __init__(self, specifiers):
+         self.specifiers = specifiers
+@@ -315,6 +338,8 @@ class _BuildMetaBackend(_ConfigSettingsTranslator):
+             "egg_info",
+             *self._arbitrary_args(config_settings),
+         ]
++        print("in build_requires")
++        sys.exit(1)
+         try:
+             with Distribution.patch():
+                 self.run_setup()
+@@ -335,9 +360,17 @@ class _BuildMetaBackend(_ConfigSettingsTranslator):
+         exec(code, locals())
+ 
+     def get_requires_for_build_wheel(self, config_settings=None):
+-        return self._get_build_requires(config_settings, requirements=['wheel'])
++        print("top of requires for")
++        sys.exit(1)
++        reqs = self._get_build_requires(config_settings, requirements=['wheel'])
++        print(reqs)
++        sys.exit(1)
++        _write_pynixify_files(config_settings, [])
++        return reqs
+ 
+     def get_requires_for_build_sdist(self, config_settings=None):
++        print("top of requires for build sdist")
++        sys.exit(1)
+         return self._get_build_requires(config_settings, requirements=[])
+ 
+     def _bubble_up_info_directory(self, metadata_directory: str, suffix: str) -> str:
+@@ -375,12 +408,26 @@ class _BuildMetaBackend(_ConfigSettingsTranslator):
+         ]
+         with no_install_setup_requires():
+             self.run_setup()
+-
+-        self._bubble_up_info_directory(metadata_directory, ".egg-info")
+-        return self._bubble_up_info_directory(metadata_directory, ".dist-info")
++        print("we did the setup")
++
++        egg_info_dir = self._bubble_up_info_directory(metadata_directory, ".egg-info")
++        with open(os.path.join(egg_info_dir, "requires.txt"), "r") as f:
++            reqs = []
++            lines = f.readlines()
++            for line in lines:
++                if line.startswith("["):
++                    break
++                reqs.append(line)
++            _write_pynixify_files(config_settings, reqs)
++        print("we bubbled egg")
++        res = self._bubble_up_info_directory(metadata_directory, ".dist-info")
++        print("we bubbled dist")
++        return res
+ 
+     def _build_with_temp_dir(self, setup_command, result_extension,
+                              result_directory, config_settings):
++        print("in build_temp")
++        sys.exit(1)
+         result_directory = os.path.abspath(result_directory)
+ 
+         # Build in a temporary directory, then copy to the target.
+@@ -408,11 +455,16 @@ class _BuildMetaBackend(_ConfigSettingsTranslator):
+ 
+     def build_wheel(self, wheel_directory, config_settings=None,
+                     metadata_directory=None):
++        print("in build_wheel")
++        sys.exit(1)
++        _write_pynixify_files(config_settings, [])
+         with suppress_known_deprecation():
+             return self._build_with_temp_dir(['bdist_wheel'], '.whl',
+                                              wheel_directory, config_settings)
+ 
+     def build_sdist(self, sdist_directory, config_settings=None):
++        print("in build_sdist")
++        sys.exit(1)
+         return self._build_with_temp_dir(['sdist', '--formats', 'gztar'],
+                                          '.tar.gz', sdist_directory,
+                                          config_settings)
+@@ -433,6 +485,8 @@ class _BuildMetaBackend(_ConfigSettingsTranslator):
+         def build_editable(
+             self, wheel_directory, config_settings=None, metadata_directory=None
+         ):
++            print("in build_editable")
++            sys.exit(1)
+             # XXX can or should we hide our editable_wheel command normally?
+             info_dir = self._get_dist_info_dir(metadata_directory)
+             opts = ["--dist-info-dir", info_dir] if info_dir else []
+@@ -442,10 +496,14 @@ class _BuildMetaBackend(_ConfigSettingsTranslator):
+             )
+ 
+         def get_requires_for_build_editable(self, config_settings=None):
++            print("in requires_for_build_editable")
++            sys.exit(1)
+             return self.get_requires_for_build_wheel(config_settings)
+ 
+         def prepare_metadata_for_build_editable(self, metadata_directory,
+                                                 config_settings=None):
++            print("in metadata_for_editable")
++            sys.exit(1)
+             return self.prepare_metadata_for_build_wheel(
+                 metadata_directory, config_settings
+             )
+@@ -489,6 +547,8 @@ class _BuildMetaLegacyBackend(_BuildMetaBackend):
+             # within the hook after run_setup is called.
+             sys.path[:] = sys_path
+             sys.argv[0] = sys_argv_0
++        print("legacy")
++        sys.exit(1)
+ 
+ 
+ # The primary backend
